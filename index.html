@@ -123,75 +123,58 @@
     </div>
   </div>
 
-  <script>
-    // ---- Storage keys ----
-    const KEY_LAST_RESET_MS = "hitler:lastResetMs";
-    const KEY_RESET_COUNT  = "hitler:resetCount";
+<script>
+  const API_URL = "https://hitler-counter-api.dreadoodles.workers.dev/";
 
-    const fmtInt = (n) => Math.floor(n).toLocaleString();
+  const fmtInt = (n) => Math.floor(n).toLocaleString();
 
-    function loadState() {
-      const lastResetMsRaw = localStorage.getItem(KEY_LAST_RESET_MS);
-      const resetCountRaw  = localStorage.getItem(KEY_RESET_COUNT);
+  let state = {
+    lastResetMs: 0,
+    resetCount: 0
+  };
 
-      let lastResetMs = lastResetMsRaw ? Number(lastResetMsRaw) : Date.now();
-      let resetCount = resetCountRaw ? Number(resetCountRaw) : 0;
+  async function fetchState() {
+    const res = await fetch(API_URL);
+    state = await res.json();
+    updateUI();
+  }
 
-      if (!lastResetMsRaw) localStorage.setItem(KEY_LAST_RESET_MS, lastResetMs);
-      if (!resetCountRaw) localStorage.setItem(KEY_RESET_COUNT, resetCount);
+  async function resetCounter() {
+    const res = await fetch(API_URL, { method: "POST" });
+    state = await res.json();
+    updateUI();
+  }
 
-      return { lastResetMs, resetCount };
-    }
+  function updateUI() {
+    const now = Date.now();
+    const elapsedMs = Math.max(0, now - state.lastResetMs);
+    const elapsedSec = elapsedMs / 1000;
 
-    function saveState(state) {
-      localStorage.setItem(KEY_LAST_RESET_MS, state.lastResetMs);
-      localStorage.setItem(KEY_RESET_COUNT, state.resetCount);
-    }
+    const seconds = elapsedSec;
+    const minutes = elapsedSec / 60;
+    const hours   = elapsedSec / 3600;
+    const days    = elapsedSec / 86400;
+    const months  = days / 30.436875;
+    const years   = days / 365.2425;
 
-    function updateUI(state) {
-      const now = Date.now();
-      const elapsedMs = Math.max(0, now - state.lastResetMs);
-      const elapsedSec = elapsedMs / 1000;
+    document.getElementById("seconds").textContent = fmtInt(seconds);
+    document.getElementById("minutes").textContent = fmtInt(minutes);
+    document.getElementById("hours").textContent   = fmtInt(hours);
+    document.getElementById("days").textContent    = fmtInt(days);
+    document.getElementById("months").textContent  = fmtInt(months);
+    document.getElementById("years").textContent   = fmtInt(years);
 
-      const seconds = elapsedSec;
-      const minutes = elapsedSec / 60;
-      const hours   = elapsedSec / 3600;
-      const days    = elapsedSec / 86400;
+    document.getElementById("resetCount").textContent = fmtInt(state.resetCount);
+    document.getElementById("lastReset").textContent =
+      new Date(state.lastResetMs).toLocaleString();
+  }
 
-      const months = days / 30.436875;
-      const years  = days / 365.2425;
+  document.getElementById("resetBtn").addEventListener("click", resetCounter);
 
-      document.getElementById("seconds").textContent = fmtInt(seconds);
-      document.getElementById("minutes").textContent = fmtInt(minutes);
-      document.getElementById("hours").textContent   = fmtInt(hours);
-      document.getElementById("days").textContent    = fmtInt(days);
-      document.getElementById("months").textContent  = fmtInt(months);
-      document.getElementById("years").textContent   = fmtInt(years);
+  fetchState();
+  setInterval(updateUI, 250);
+</script>
 
-      document.getElementById("resetCount").textContent = fmtInt(state.resetCount);
-      document.getElementById("lastReset").textContent =
-        new Date(state.lastResetMs).toLocaleString();
-    }
-
-    let state = loadState();
-    updateUI(state);
-
-    setInterval(() => updateUI(state), 250);
-
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      state.lastResetMs = Date.now();
-      state.resetCount += 1;
-      saveState(state);
-      updateUI(state);
-    });
-
-    document.getElementById("hardResetBtn").addEventListener("click", () => {
-      if (!confirm("This will clear all saved data. Continue?")) return;
-      localStorage.removeItem(KEY_LAST_RESET_MS);
-      localStorage.removeItem(KEY_RESET_COUNT);
-      state = loadState();
-      updateUI(state);
-    });
-  </script>
 </body>
 </html>
+
