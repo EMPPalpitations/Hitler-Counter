@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hitler Mention Counter</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body {
+      margin: 0;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      background: #0b0f19;
+      color: #e7ecff;
+    }
+    .card {
+      width: min(860px, 95vw);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 10px; font-size: 22px; }
+    .sub { opacity: 0.85; margin-bottom: 18px; line-height: 1.35; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .tile {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .label {
+      font-size: 12px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .value {
+      font-size: 26px;
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .meta {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      opacity: 0.9;
+    }
+    button {
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.10);
+      color: #e7ecff;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    button:hover { background: rgba(255,255,255,0.16); }
+    button.danger { border-color: rgba(255,80,80,0.35); }
+    button.danger:hover { background: rgba(255,80,80,0.18); }
+    code {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .small {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Time since “Hitler” was mentioned</h1>
+
+    <div class="sub">
+      This timer measures how long it’s been since the last real-life mention of
+      <code>Hitler</code>. Press <b>Reset</b> whenever the word is mentioned.
+    </div>
+
+    <div class="grid">
+      <div class="tile"><div class="label">Seconds</div><div class="value" id="seconds">0</div></div>
+      <div class="tile"><div class="label">Minutes</div><div class="value" id="minutes">0</div></div>
+      <div class="tile"><div class="label">Hours</div><div class="value" id="hours">0</div></div>
+
+      <div class="tile"><div class="label">Days</div><div class="value" id="days">0</div></div>
+      <div class="tile"><div class="label">Months (approx.)</div><div class="value" id="months">0</div></div>
+      <div class="tile"><div class="label">Years (approx.)</div><div class="value" id="years">0</div></div>
+    </div>
+
+    <div class="meta">
+      <div class="tile" style="flex:1; min-width:240px;">
+        <div class="label">Reset count (Hitler mentions logged)</div>
+        <div class="value" id="resetCount">0</div>
+      </div>
+      <div class="tile" style="flex:2; min-width:300px;">
+        <div class="label">Last reset</div>
+        <div class="value" id="lastReset" style="font-size:18px;">—</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+      <button id="resetBtn">Reset (Hitler mentioned)</button>
+      <button class="danger" id="hardResetBtn">Hard reset (clear all)</button>
+    </div>
+
+    <div class="small">
+      Months and years are approximations using average Gregorian lengths
+      (30.436875 days/month, 365.2425 days/year).
+    </div>
+  </div>
+
+  <script>
+    // ---- Storage keys ----
+    const KEY_LAST_RESET_MS = "hitler:lastResetMs";
+    const KEY_RESET_COUNT  = "hitler:resetCount";
+
+    const fmtInt = (n) => Math.floor(n).toLocaleString();
+
+    function loadState() {
+      const lastResetMsRaw = localStorage.getItem(KEY_LAST_RESET_MS);
+      const resetCountRaw  = localStorage.getItem(KEY_RESET_COUNT);
+
+      let lastResetMs = lastResetMsRaw ? Number(lastResetMsRaw) : Date.now();
+      let resetCount = resetCountRaw ? Number(resetCountRaw) : 0;
+
+      if (!lastResetMsRaw) localStorage.setItem(KEY_LAST_RESET_MS, lastResetMs);
+      if (!resetCountRaw) localStorage.setItem(KEY_RESET_COUNT, resetCount);
+
+      return { lastResetMs, resetCount };
+    }
+
+    function saveState(state) {
+      localStorage.setItem(KEY_LAST_RESET_MS, state.lastResetMs);
+      localStorage.setItem(KEY_RESET_COUNT, state.resetCount);
+    }
+
+    function updateUI(state) {
+      const now = Date.now();
+      const elapsedMs = Math.max(0, now - state.lastResetMs);
+      const elapsedSec = elapsedMs / 1000;
+
+      const seconds = elapsedSec;
+      const minutes = elapsedSec / 60;
+      const hours   = elapsedSec / 3600;
+      const days    = elapsedSec / 86400;
+
+      const months = days / 30.436875;
+      const years  = days / 365.2425;
+
+      document.getElementById("seconds").textContent = fmtInt(seconds);
+      document.getElementById("minutes").textContent = fmtInt(minutes);
+      document.getElementById("hours").textContent   = fmtInt(hours);
+      document.getElementById("days").textContent    = fmtInt(days);
+      document.getElementById("months").textContent  = fmtInt(months);
+      document.getElementById("years").textContent   = fmtInt(years);
+
+      document.getElementById("resetCount").textContent = fmtInt(state.resetCount);
+      document.getElementById("lastReset").textContent =
+        new Date(state.lastResetMs).toLocaleString();
+    }
+
+    let state = loadState();
+    updateUI(state);
+
+    setInterval(() => updateUI(state), 250);
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      state.lastResetMs = Date.now();
+      state.resetCount += 1;
+      saveState(state);
+      updateUI(state);
+    });
+
+    document.getElementById("hardResetBtn").addEventListener("click", () => {
+      if (!confirm("This will clear all saved data. Continue?")) return;
+      localStorage.removeItem(KEY_LAST_RESET_MS);
+      localStorage.removeItem(KEY_RESET_COUNT);
+      state = loadState();
+      updateUI(state);
+    });
+  </script>
+</body>
+</html>
